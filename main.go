@@ -85,9 +85,13 @@ func get_etld_p1(initid *C.UDF_INIT, args *C.UDF_ARGS, result *C.char, length *u
 		return nil
 	}
 
+	// Replace back slashes with forward slashes since they aren't
+	// really allowed but not impossible and we want to be forgiving
+	r := strings.Replace(strings.ToLower(strings.TrimSpace(a[0])), `\`, `/`, -1)
+
 	// Parsing first to get the hostname by itself, since `EffectiveTLDPlusOne`
 	// acts strangely if it isn't just given the hostname
-	u, err := url.Parse(a[0])
+	u, err := url.Parse(r)
 	if err != nil {
 		l.Println(err.Error())
 		return nil
@@ -96,7 +100,7 @@ func get_etld_p1(initid *C.UDF_INIT, args *C.UDF_ARGS, result *C.char, length *u
 	// if the scheme isn't there we don't get what we expect (like a blank string
 	// for 'com.s3-website-us-east-1.amazonaws.com')
 	if u.Scheme == "" {
-		u, err = url.Parse("http://" + a[0])
+		u, err = url.Parse("http://" + r)
 		if err != nil {
 			l.Println(err.Error())
 			return nil
@@ -104,6 +108,22 @@ func get_etld_p1(initid *C.UDF_INIT, args *C.UDF_ARGS, result *C.char, length *u
 	}
 
 	hostname := u.Hostname()
+
+	// If the scheme isn't one of these, then it's likely
+	// an Android app or something similar, in which case
+	// TLD searching won't make sense here, and we'd expect the full address
+	// not including the scheme
+	if u.Scheme != "http" && u.Scheme != "https" && u.Scheme != "ftp" {
+		*length = uint64(len(hostname))
+		return C.CString(hostname)
+	}
+
+	// localhost doesn't have a tld
+	// if strings.IndexByte(hostname, '.') == -1 {
+	if hostname == "localhost" {
+		*length = uint64(len(hostname))
+		return C.CString(hostname)
+	}
 
 	// Check to see if the hostname is an IP address since
 	// they don't have TLDs
@@ -122,8 +142,6 @@ func get_etld_p1(initid *C.UDF_INIT, args *C.UDF_ARGS, result *C.char, length *u
 		}
 		return nil
 	}
-
-	h = strings.ToLower(h)
 
 	*length = uint64(len(h))
 	return C.CString(h)
