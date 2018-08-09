@@ -11,7 +11,7 @@
  * create function`get_etld_p1`returns string soname'get_etld_p1.so';
  *
  * And use/test like:
- * select`get_etld_p1`('https://stackoverflow.com/questions/51446087/how-to-debug-dump-go-variable-while-building-with-cgo?noredirect=1#comment89863750_51446087'); -- outputs 'stackoverflow.com'
+ * select`get_etld_p1`('http://a.very.complex-domain.co.uk:8080/foo/bar'); -- outputs 'complex-domain.co.uk'
  *
  * Yeet!
  * Brian Leishman
