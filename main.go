@@ -11,7 +11,7 @@
  * create function`get_etld_p1`returns string soname'get_etld_p1.so';
  *
  * And use/test like:
- * select`get_etld_p1`('https://stackoverflow.com/questions/51446087/how-to-debug-dump-go-variable-while-building-with-cgo?noredirect=1#comment89863750_51446087', 'noredirect'); -- outputs 'stackoverflow.com'
+ * select`get_etld_p1`('https://stackoverflow.com/questions/51446087/how-to-debug-dump-go-variable-while-building-with-cgo?noredirect=1#comment89863750_51446087'); -- outputs 'stackoverflow.com'
  *
  * Yeet!
  * Brian Leishman
@@ -80,10 +80,26 @@ func get_etld_p1(initid *C.UDF_INIT, args *C.UDF_ARGS, result *C.char, length *u
 		a[i] = C.GoString(argsArg)
 	}
 
+	if a[0] == "" {
+		return nil
+	}
+
+	// Parsing first to get the hostname by itself, since `EffectiveTLDPlusOne`
+	// acts strangely if it isn't just given the hostname
 	u, err := url.Parse(a[0])
 	if err != nil {
 		l.Println(err.Error())
 		return nil
+	}
+
+	// if the scheme isn't there we don't get what we expect (like a blank string
+	// for 'com.s3-website-us-east-1.amazonaws.com')
+	if u.Scheme == "" {
+		u, err = url.Parse("http://" + a[0])
+		if err != nil {
+			l.Println(err.Error())
+			return nil
+		}
 	}
 
 	h, err := publicsuffix.EffectiveTLDPlusOne(u.Hostname())
