@@ -30,6 +30,7 @@ package main
 import "C"
 import (
 	"log"
+	"net"
 	"net/url"
 	"os"
 	"strings"
@@ -102,7 +103,17 @@ func get_etld_p1(initid *C.UDF_INIT, args *C.UDF_ARGS, result *C.char, length *u
 		}
 	}
 
-	h, err := publicsuffix.EffectiveTLDPlusOne(u.Hostname())
+	hostname := u.Hostname()
+
+	// Check to see if the hostname is an IP address since
+	// they don't have TLDs
+	addr := net.ParseIP(hostname)
+	if addr != nil {
+		*length = uint64(len(hostname))
+		return C.CString(hostname)
+	}
+
+	h, err := publicsuffix.EffectiveTLDPlusOne(hostname)
 	if err != nil || len(h) == 0 {
 		if err != nil {
 			l.Println(err.Error())
